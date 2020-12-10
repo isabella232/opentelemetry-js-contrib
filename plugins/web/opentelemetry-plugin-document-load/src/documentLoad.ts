@@ -103,6 +103,7 @@ export class DocumentLoad extends BasePlugin<unknown> {
         return;
       }
       this._tracer.withSpan(rootSpan, () => {
+        console.log(JSON.stringify(entries));
         const fetchSpan = this._startSpan(
           AttributeNames.DOCUMENT_FETCH,
           PTN.FETCH_START,
@@ -172,8 +173,12 @@ export class DocumentLoad extends BasePlugin<unknown> {
       keys.forEach((key: string) => {
         if (hasKey(performanceNavigationTiming, key)) {
           const value = performanceNavigationTiming[key];
-          if (typeof value === 'number' && value >= 0) {
-            entries[key] = value;
+          if (typeof value === 'number') {
+            // in certain scenarios (especially local network) Firefox / Edge
+            // like to report negative timing values, it does not mean that
+            // there was a failure to load anything, nor does it indicate
+            // cache hit
+            entries[key] = value >= 0 ? value : 0;
           }
         }
       });
@@ -186,13 +191,34 @@ export class DocumentLoad extends BasePlugin<unknown> {
         keys.forEach((key: string) => {
           if (hasKey(performanceTiming, key)) {
             const value = performanceTiming[key];
-            if (typeof value === 'number' && value >= 0) {
-              entries[key] = value;
+            if (typeof value === 'number') {
+              // in certain scenarios (especially local network) Firefox / Edge
+              // like to report negative timing values, it does not mean that
+              // there was a failure to load anything, nor does it indicate
+              // cache hit
+              entries[key] = value >= 0 ? value : 0;
             }
           }
         });
       }
     }
+
+    // lack of fetchStart property will prevent the documentFetch span
+    // from being sent
+    // please consult the specification for reference:
+    // https://www.w3.org/TR/navigation-timing/#sec-window.performance-attribute
+    if (typeof entries[PTN.FETCH_START] !== 'number') {
+      if (typeof entries[PTN.REDIRECT_END] === 'number') {
+        entries[PTN.FETCH_START] = entries[PTN.REDIRECT_END];
+      } else if (typeof entries[PTN.UNLOAD_EVENT_END] === 'number') {
+        entries[PTN.FETCH_START] = entries[PTN.UNLOAD_EVENT_END];
+      } else if (typeof entries[PTN.NAVIGATION_START] === 'number') {
+        entries[PTN.FETCH_START] = entries[PTN.NAVIGATION_START];
+      } else {
+        entries[PTN.FETCH_START] = 0;
+      }
+    }
+
     return entries;
   }
 
