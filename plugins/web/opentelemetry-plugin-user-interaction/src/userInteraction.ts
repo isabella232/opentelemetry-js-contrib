@@ -246,7 +246,7 @@ export class UserInteractionPlugin extends BasePlugin<unknown> {
   private _patchElement() {
     const plugin = this;
     return (original: Function) => {
-      return function addEventListenerPatched(
+      return function instrumentedAddEventListener(
         this: HTMLElement,
         type: any,
         listener: any,
@@ -296,7 +296,7 @@ export class UserInteractionPlugin extends BasePlugin<unknown> {
   private _patchRemoveEventListener() {
     const plugin = this;
     return (original: Function) => {
-      return function removeEventListenerPatched(
+      return function instrumentedemoveEventListener(
         this: HTMLElement,
         type: any,
         listener: any,
@@ -335,7 +335,7 @@ export class UserInteractionPlugin extends BasePlugin<unknown> {
   _patchHistoryMethod() {
     const plugin = this;
     return (original: any) => {
-      return function patchHistoryMethod(this: History, ...args: unknown[]) {
+      return function instrumentedHistoryMethod(this: History, ...args: unknown[]) {
         const url = `${location.pathname}${location.hash}${location.search}`;
         const result = original.apply(this, args);
         const urlAfter = `${location.pathname}${location.hash}${location.search}`;
@@ -377,7 +377,7 @@ export class UserInteractionPlugin extends BasePlugin<unknown> {
   private _patchZoneCancelTask() {
     const plugin = this;
     return (original: any) => {
-      return function patchCancelTask<T extends Task>(
+      return function instrumentedCancelTask<T extends Task>(
         this: Zone,
         task: AsyncTask
       ) {
@@ -400,7 +400,7 @@ export class UserInteractionPlugin extends BasePlugin<unknown> {
   private _patchZoneScheduleTask() {
     const plugin = this;
     return (original: any) => {
-      return function patchScheduleTask<T extends Task>(
+      return function instrumentedScheduleTask<T extends Task>(
         this: Zone,
         task: AsyncTask
       ) {
@@ -440,7 +440,7 @@ export class UserInteractionPlugin extends BasePlugin<unknown> {
               try {
                 return api.context.with(
                   api.setSpan(api.context.active(), span!),
-                  () => {
+                  function instrumentedZoneRun() {
                     const currentZone = Zone.current;
                     task._zone = currentZone;
                     return original.call(
